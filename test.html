@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test Yourself – EduGenie</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><div class="brand-icon">🧞</div><span class="brand-name">Edu<span>Genie</span></span></a>
+  <ul class="nav-links">
+    <li><a href="/">🏠 Home</a></li><li><a href="/ask">💬 Ask</a></li><li><a href="/explain">🔍 Explain</a></li>
+    <li><a href="/quiz">📝 Quiz</a></li><li><a href="/test" class="active">✍️ Test</a></li>
+    <li><a href="/flashcards">🃏 Cards</a></li><li><a href="/summary">📚 Summary</a></li><li><a href="/translate">🌐 Translate</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-badge">✍️ Feature 5</div>
+    <h1 class="page-title">Test <span>Yourself</span></h1>
+    <p class="page-subtitle">Write your answers to AI-generated questions. Get graded instantly with detailed feedback. Use voice input if you prefer speaking!</p>
+  </div>
+
+  <!-- Setup Card -->
+  <div class="card" id="setupCard">
+    <div class="alert alert-error" id="errorAlert"><span>⚠️</span><span id="errorMsg"></span></div>
+    <div class="form-group">
+      <label for="topic">Topic *</label>
+      <input type="text" id="topic" placeholder="e.g. Photosynthesis, World War II, Newton's Laws…" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="num_questions">Number of Questions</label>
+        <input type="number" id="num_questions" value="5" min="1" max="10" />
+      </div>
+      <div class="form-group">
+        <label for="difficulty">Difficulty</label>
+        <select id="difficulty">
+          <option value="easy">🟢 Easy</option>
+          <option value="medium" selected>🟡 Medium</option>
+          <option value="hard">🔴 Hard</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="generateBtn" onclick="generateTest()">✍️ Start Test</button>
+  </div>
+
+  <div class="spinner-wrap" id="spinner"><div class="spinner"></div><p class="spinner-text">Generating your test…</p></div>
+
+  <!-- Test Header -->
+  <div id="testHeader" style="display:none; margin-bottom:1.25rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+      <div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--text)" id="testTitle"></h2>
+        <p style="font-size:0.83rem;color:var(--text2);margin-top:0.2rem" id="testMeta"></p>
+      </div>
+      <div style="display:flex;gap:0.6rem">
+        <button class="btn btn-success" onclick="submitAll()" id="submitAllBtn" style="display:none">✅ Submit All</button>
+        <button class="btn btn-outline" onclick="resetTest()" style="font-size:0.82rem;padding:0.5rem 1rem">🔄 New Test</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Questions -->
+  <div id="questionsContainer"></div>
+
+  <!-- Score Summary -->
+  <div class="score-summary" id="scoreSummary">
+    <div class="final-score" id="finalScore">0%</div>
+    <div class="score-label">Overall Score</div>
+    <div class="score-grid">
+      <div class="score-stat"><div class="score-stat-num correct-num" id="correctCount">0</div><div class="score-stat-label">Correct</div></div>
+      <div class="score-stat"><div class="score-stat-num wrong-num" id="wrongCount">0</div><div class="score-stat-label">Incorrect</div></div>
+      <div class="score-stat"><div class="score-stat-num" id="totalCount" style="color:var(--blue-bright)">0</div><div class="score-stat-label">Total</div></div>
+    </div>
+    <div id="finalMessage" style="font-size:1.1rem;color:var(--text2);margin-bottom:1.5rem"></div>
+    <button class="btn btn-primary" onclick="resetTest()">🔄 Take Another Test</button>
+  </div>
+</div>
+
+<script>
+let testData   = [];
+let results    = {};
+let mediaRec   = null;
+let activeRecQ = null;
+
+async function generateTest() {
+  const topic         = document.getElementById('topic').value.trim();
+  const num_questions = parseInt(document.getElementById('num_questions').value) || 5;
+  const difficulty    = document.getElementById('difficulty').value;
+
+  document.getElementById('errorAlert').classList.remove('show');
+  if (!topic) { showError('Please enter a topic.'); return; }
+
+  setLoading(true);
+  try {
+    const res  = await fetch('/test/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({topic, num_questions, difficulty}) });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'Failed.'); return; }
+    testData = data.questions;
+    results  = {};
+    renderTest(data);
+  } catch(e) { showError('Network error. Make sure server is running.'); }
+  finally { setLoading(false); }
+}
+
+function renderTest(data) {
+  const emoji = { easy:'🟢', medium:'🟡', hard:'🔴' };
+  document.getElementById('testTitle').textContent = `✍️ ${data.topic}`;
+  document.getElementById('testMeta').textContent  = `${data.questions.length} questions · ${emoji[data.difficulty]} ${data.difficulty}`;
+  document.getElementById('testHeader').style.display = 'flex';
+  document.getElementById('setupCard').style.display  = 'none';
+  document.getElementById('submitAllBtn').style.display = 'inline-flex';
+  document.getElementById('scoreSummary').classList.remove('show');
+
+  const container = document.getElementById('questionsContainer');
+  container.innerHTML = '';
+
+  data.questions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'test-question-card';
+    div.id = `qcard-${i}`;
+    div.style.animationDelay = `${i * 0.07}s`;
+    div.innerHTML = `
+      <div class="test-q-header">
+        <div class="test-q-num">Question ${q.question_number}</div>
+        <div class="test-q-status status-pending" id="status-${i}">⏳ Pending</div>
+      </div>
+      <div class="test-q-text">${q.question}</div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+        <button class="speak-btn" onclick="speakQuestion(${i})" title="Listen to question">🔊 Listen</button>
+      </div>
+      <textarea class="test-answer-area" id="answer-${i}" placeholder="Type your answer here… or use voice input below"></textarea>
+      <div class="test-controls">
+        <button class="btn btn-primary" onclick="submitAnswer(${i})" id="submit-${i}" style="font-size:0.85rem;padding:0.6rem 1.2rem">✅ Submit</button>
+        <button class="voice-btn" onclick="toggleVoice(${i})" id="voice-${i}">🎙️ Voice Input</button>
+        <button class="speak-btn" onclick="speakText(document.getElementById('answer-${i}').value)" title="Listen to your answer">🔊 Read My Answer</button>
+      </div>
+      <div class="feedback-box" id="feedback-${i}"></div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+async function submitAnswer(index) {
+  const q      = testData[index];
+  const answer = document.getElementById(`answer-${index}`).value.trim();
+
+  if (!answer) { alert('Please write or speak your answer first!'); return; }
+
+  const btn = document.getElementById(`submit-${index}`);
+  btn.disabled = true;
+  btn.textContent = '⏳ Grading…';
+
+  try {
+    const res  = await fetch('/test/validate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ question: q.question, student_answer: answer, correct_answer: q.correct_answer, keywords: q.keywords })
+    });
+    const data = await res.json();
+    if (!res.ok) { btn.disabled = false; btn.textContent = '✅ Submit'; alert(data.error); return; }
+
+    results[index] = data;
+    showFeedback(index, data);
+    updateStatus(index, data.is_correct);
+    btn.textContent = '✔ Graded';
+    checkAllAnswered();
+  } catch(e) {
+    btn.disabled = false; btn.textContent = '✅ Submit';
+    alert('Network error. Try again.');
+  }
+}
+
+function showFeedback(index, data) {
+  const box = document.getElementById(`feedback-${index}`);
+  const gradeColor = data.score >= 90 ? '#6ee7b7' : data.score >= 75 ? '#93c5fd' : data.score >= 60 ? '#fcd34d' : '#fca5a5';
+  box.className = `feedback-box show ${data.is_correct ? 'feedback-correct' : 'feedback-wrong'}`;
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">
+      <span class="score-badge ${data.is_correct ? 'score-correct' : 'score-wrong'}">${data.score}/100</span>
+      <span style="font-size:1.2rem;font-weight:700;color:${gradeColor};font-family:'Playfair Display',serif">Grade: ${data.grade}</span>
+      <span>${data.is_correct ? '✅ Correct!' : '❌ Needs Work'}</span>
+    </div>
+    <div class="feedback-text" style="color:var(--text2)">${data.feedback}</div>
+    ${!data.is_correct ? `<div class="correct-ans-box"><strong>✅ Correct Answer:</strong> ${data.correct_answer}</div>` : ''}
+    ${data.tips ? `<div style="margin-top:0.6rem;font-size:0.82rem;color:var(--text3)">💡 Tip: ${data.tips}</div>` : ''}
+  `;
+  // Auto speak feedback
+  speakText(`You scored ${data.score} out of 100. Grade ${data.grade}. ${data.feedback}`);
+}
+
+function updateStatus(index, isCorrect) {
+  const s = document.getElementById(`status-${index}`);
+  if (isCorrect) {
+    s.className = 'test-q-status status-correct';
+    s.textContent = '✅ Correct';
+  } else {
+    s.className = 'test-q-status status-wrong';
+    s.textContent = '❌ Incorrect';
+  }
+}
+
+function checkAllAnswered() {
+  if (Object.keys(results).length === testData.length) {
+    showScoreSummary();
+  }
+}
+
+async function submitAll() {
+  for (let i = 0; i < testData.length; i++) {
+    if (!results[i]) {
+      const answer = document.getElementById(`answer-${i}`).value.trim();
+      if (answer) await submitAnswer(i);
+    }
+  }
+}
+
+function showScoreSummary() {
+  const total   = testData.length;
+  const correct = Object.values(results).filter(r => r.is_correct).length;
+  const wrong   = total - correct;
+  const pct     = Math.round((correct / total) * 100);
+
+  document.getElementById('finalScore').textContent  = `${pct}%`;
+  document.getElementById('correctCount').textContent = correct;
+  document.getElementById('wrongCount').textContent   = wrong;
+  document.getElementById('totalCount').textContent   = total;
+
+  const msg = pct >= 90 ? '🏆 Excellent! Outstanding performance!' :
+              pct >= 75 ? '🎉 Great job! Keep it up!' :
+              pct >= 60 ? '👍 Good effort! Review the missed topics.' :
+                          '📚 Keep studying! You\'ll do better next time.';
+  document.getElementById('finalMessage').textContent = msg;
+  document.getElementById('scoreSummary').classList.add('show');
+  document.getElementById('scoreSummary').scrollIntoView({ behavior:'smooth', block:'center' });
+  speakText(`Test complete! You scored ${pct} percent. ${correct} correct out of ${total}. ${msg}`);
+}
+
+function resetTest() {
+  testData = []; results = {};
+  document.getElementById('setupCard').style.display    = 'block';
+  document.getElementById('testHeader').style.display   = 'none';
+  document.getElementById('questionsContainer').innerHTML = '';
+  document.getElementById('scoreSummary').classList.remove('show');
+  document.getElementById('submitAllBtn').style.display  = 'none';
+  document.getElementById('topic').value = '';
+}
+
+// ── Voice Input ──
+async function toggleVoice(index) {
+  const btn = document.getElementById(`voice-${index}`);
+  if (mediaRec && mediaRec.state === 'recording') {
+    mediaRec.stop();
+    btn.classList.remove('recording');
+    btn.textContent = '🎙️ Voice Input';
+    activeRecQ = null;
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const chunks = [];
+    mediaRec = new MediaRecorder(stream);
+    activeRecQ = index;
+    btn.classList.add('recording');
+    btn.textContent = '⏹️ Stop Recording';
+
+    mediaRec.ondataavailable = e => chunks.push(e.data);
+    mediaRec.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      transcribeAudio(blob, index);
+    };
+    mediaRec.start();
+  } catch(e) {
+    alert('Microphone access denied. Please allow microphone permission in your browser.');
+  }
+}
+
+function transcribeAudio(blob, index) {
+  // Use Web Speech API for transcription
+  const recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!recognition) {
+    alert('Voice recognition not supported in this browser. Try Chrome!');
+    return;
+  }
+  // Fallback: use speech recognition directly
+  const rec = new recognition();
+  rec.lang = 'en-US';
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.onresult = e => {
+    const transcript = e.results[0][0].transcript;
+    document.getElementById(`answer-${index}`).value = transcript;
+  };
+  rec.onerror = () => alert('Could not transcribe. Please type your answer.');
+  rec.start();
+}
+
+// ── Voice Input via Web Speech (direct) ──
+function toggleVoice(index) {
+  const btn = document.getElementById(`voice-${index}`);
+  const recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!recognition) {
+    alert('Voice input not supported in this browser. Please use Chrome or Edge!');
+    return;
+  }
+
+  if (btn.classList.contains('recording')) {
+    btn.classList.remove('recording');
+    btn.textContent = '🎙️ Voice Input';
+    return;
+  }
+
+  const rec = new recognition();
+  rec.lang = 'en-US';
+  rec.continuous = true;
+  rec.interimResults = true;
+
+  btn.classList.add('recording');
+  btn.textContent = '⏹️ Stop';
+
+  rec.onresult = e => {
+    let transcript = '';
+    for (let i = 0; i < e.results.length; i++) {
+      transcript += e.results[i][0].transcript;
+    }
+    document.getElementById(`answer-${index}`).value = transcript;
+  };
+
+  rec.onend = () => {
+    btn.classList.remove('recording');
+    btn.textContent = '🎙️ Voice Input';
+  };
+
+  rec.onerror = () => {
+    btn.classList.remove('recording');
+    btn.textContent = '🎙️ Voice Input';
+    alert('Microphone error. Please allow microphone access.');
+  };
+
+  rec.start();
+
+  // Auto-stop after 30 seconds
+  setTimeout(() => { try { rec.stop(); } catch(e) {} }, 30000);
+}
+
+// ── Text to Speech ──
+function speakQuestion(index) {
+  const text = testData[index]?.question;
+  if (text) speakText(text);
+}
+
+function speakText(text) {
+  if (!text) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 0.9;
+  utt.pitch = 1;
+  window.speechSynthesis.speak(utt);
+}
+
+function setLoading(on) {
+  document.getElementById('generateBtn').disabled = on;
+  document.getElementById('generateBtn').textContent = on ? '⏳ Generating…' : '✍️ Start Test';
+  document.getElementById('spinner').classList.toggle('show', on);
+}
+
+function showError(msg) {
+  document.getElementById('errorMsg').textContent = msg;
+  document.getElementById('errorAlert').classList.add('show');
+}
+</script>
+</body>
+</html>

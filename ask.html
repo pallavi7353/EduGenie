@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Q&A – EduGenie</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><div class="brand-icon">🧞</div><span class="brand-name">Edu<span>Genie</span></span></a>
+  <ul class="nav-links">
+    <li><a href="/">🏠 Home</a></li><li><a href="/ask" class="active">💬 Ask</a></li><li><a href="/explain">🔍 Explain</a></li>
+    <li><a href="/quiz">📝 Quiz</a></li><li><a href="/test">✍️ Test</a></li>
+    <li><a href="/flashcards">🃏 Cards</a></li><li><a href="/summary">📚 Summary</a></li><li><a href="/translate">🌐 Translate</a></li>
+  </ul>
+</nav>
+<div class="page">
+  <div class="page-header">
+    <div class="page-badge">💬 Feature 1</div>
+    <h1 class="page-title">Smart <span>Q&A</span></h1>
+    <p class="page-subtitle">Ask any question — academic or general — and get an instant AI-powered answer.</p>
+  </div>
+  <div class="card">
+    <div class="alert alert-error" id="errorAlert"><span>⚠️</span><span id="errorMsg"></span></div>
+    <div class="form-group">
+      <label for="question">Your Question *</label>
+      <textarea id="question" placeholder="e.g. What is Newton's Second Law of Motion?" rows="4"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="subject">Subject (optional)</label>
+      <input type="text" id="subject" placeholder="e.g. Physics, Mathematics, History…" />
+    </div>
+    <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" id="askBtn" onclick="askQuestion()">✨ Get Answer</button>
+      <button class="speak-btn" onclick="speakQuestion()">🔊 Read Question</button>
+      <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()">🎙️ Voice Input</button>
+    </div>
+  </div>
+  <div class="spinner-wrap" id="spinner"><div class="spinner"></div><p class="spinner-text">EduGenie is thinking…</p></div>
+  <div class="result-card" id="resultCard">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.9rem;flex-wrap:wrap;gap:0.5rem">
+      <div class="result-label" style="margin:0">📖 Answer</div>
+      <button class="speak-btn" onclick="speakAnswer()" style="font-size:0.78rem">🔊 Read Aloud</button>
+    </div>
+    <div class="result-text" id="resultText"></div>
+  </div>
+</div>
+<script>
+async function askQuestion() {
+  const question = document.getElementById('question').value.trim();
+  const subject  = document.getElementById('subject').value.trim();
+  document.getElementById('errorAlert').classList.remove('show');
+  if (!question) { document.getElementById('errorMsg').textContent='Please enter your question.'; document.getElementById('errorAlert').classList.add('show'); return; }
+  setLoading(true);
+  try {
+    const res  = await fetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question, subject}) });
+    const data = await res.json();
+    if (!res.ok) { document.getElementById('errorMsg').textContent=data.error||'Error'; document.getElementById('errorAlert').classList.add('show'); return; }
+    document.getElementById('resultText').textContent = data.answer;
+    document.getElementById('resultCard').classList.add('show');
+  } catch(e) { document.getElementById('errorMsg').textContent='Network error.'; document.getElementById('errorAlert').classList.add('show'); }
+  finally { setLoading(false); }
+}
+function setLoading(on) {
+  const btn = document.getElementById('askBtn');
+  btn.disabled = on; btn.textContent = on ? '⏳ Thinking…' : '✨ Get Answer';
+  document.getElementById('spinner').classList.toggle('show', on);
+  if (on) document.getElementById('resultCard').classList.remove('show');
+}
+function speakQuestion() {
+  const t = document.getElementById('question').value.trim();
+  if (t) { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(t)); }
+}
+function speakAnswer() {
+  const t = document.getElementById('resultText').textContent;
+  if (t) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.rate=0.9; window.speechSynthesis.speak(u); }
+}
+function toggleVoice() {
+  const btn = document.getElementById('voiceBtn');
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) { alert('Voice input not supported. Use Chrome or Edge.'); return; }
+  const rec = new SpeechRec(); rec.lang='en-US'; rec.continuous=false;
+  rec.onresult = e => { document.getElementById('question').value = e.results[0][0].transcript; };
+  btn.classList.add('recording'); btn.textContent='⏹️ Listening…';
+  rec.onend = () => { btn.classList.remove('recording'); btn.textContent='🎙️ Voice Input'; };
+  rec.start(); setTimeout(()=>{ try{rec.stop();}catch(e){} }, 10000);
+}
+document.getElementById('question').addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();askQuestion();} });
+</script>
+</body>
+</html>

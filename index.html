@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduGenie – AI Learning Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><div class="brand-icon">🧞</div><span class="brand-name">Edu<span>Genie</span></span></a>
+  <ul class="nav-links">
+    <li><a href="/" class="active">🏠 Home</a></li>
+    <li><a href="/ask">💬 Ask</a></li>
+    <li><a href="/explain">🔍 Explain</a></li>
+    <li><a href="/quiz">📝 Quiz</a></li>
+    <li><a href="/test">✍️ Test</a></li>
+    <li><a href="/flashcards">🃏 Cards</a></li>
+    <li><a href="/summary">📚 Summary</a></li>
+    <li><a href="/translate">🌐 Translate</a></li>
+  </ul>
+</nav>
+<div class="hero">
+  <div class="hero-badge">✨ 7 AI-Powered Features</div>
+  <div class="hero-icon">🧞</div>
+  <h1 class="hero-title">Meet <span>EduGenie</span></h1>
+  <p class="hero-sub">Your personal AI learning assistant. Ask questions, take tests, study with flashcards, generate quizzes, and more — all powered by AI.</p>
+</div>
+<div class="feature-grid">
+  <a href="/ask" class="feature-card"><span class="feature-emoji">💬</span><div class="feature-name">Smart Q&A</div><p class="feature-desc">Ask any academic question and get an instant structured AI answer.</p><span class="feature-link">Try it →</span></a>
+  <a href="/explain" class="feature-card"><span class="feature-emoji">🔍</span><div class="feature-name">Concept Explainer</div><p class="feature-desc">Understand any topic with analogies, key points and fun facts.</p><span class="feature-link">Try it →</span></a>
+  <a href="/quiz" class="feature-card"><span class="feature-emoji">📝</span><div class="feature-name">Quiz Generator</div><p class="feature-desc">Auto-generate MCQs on any topic with adjustable difficulty.</p><span class="feature-link">Try it →</span></a>
+  <a href="/test" class="feature-card"><span class="feature-emoji">✍️</span><div class="feature-name">Test Yourself</div><span class="feature-new">NEW</span><p class="feature-desc">Write answers to AI questions. Get graded with detailed feedback. Voice input supported!</p><span class="feature-link">Try it →</span></a>
+  <a href="/flashcards" class="feature-card"><span class="feature-emoji">🃏</span><div class="feature-name">Flashcards</div><span class="feature-new">NEW</span><p class="feature-desc">Generate interactive flip flashcards. Study smarter on any topic.</p><span class="feature-link">Try it →</span></a>
+  <a href="/summary" class="feature-card"><span class="feature-emoji">📚</span><div class="feature-name">Summarizer</div><p class="feature-desc">Paste any study material and get a structured bullet-point summary.</p><span class="feature-link">Try it →</span></a>
+  <a href="/translate" class="feature-card" style="grid-column:span 3"><span class="feature-emoji">🌐</span><div class="feature-name">Translate & Simplify</div><span class="feature-new">NEW</span><p class="feature-desc">Translate or simplify complex content into any language. Perfect for non-native speakers.</p><span class="feature-link">Try it →</span></a>
+</div>
+</body>
+</html>

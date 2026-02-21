@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz Generator – EduGenie</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><div class="brand-icon">🧞</div><span class="brand-name">Edu<span>Genie</span></span></a>
+  <ul class="nav-links">
+    <li><a href="/">🏠 Home</a></li><li><a href="/ask">💬 Ask</a></li><li><a href="/explain">🔍 Explain</a></li>
+    <li><a href="/quiz" class="active">📝 Quiz</a></li><li><a href="/test">✍️ Test</a></li>
+    <li><a href="/flashcards">🃏 Cards</a></li><li><a href="/summary">📚 Summary</a></li><li><a href="/translate">🌐 Translate</a></li>
+  </ul>
+</nav>
+<div class="page">
+  <div class="page-header">
+    <div class="page-badge">📝 Feature 3</div>
+    <h1 class="page-title">Quiz <span>Generator</span></h1>
+    <p class="page-subtitle">Auto-generate multiple-choice questions on any topic with adjustable difficulty.</p>
+  </div>
+  <div class="card">
+    <div class="alert alert-error" id="errorAlert"><span>⚠️</span><span id="errorMsg"></span></div>
+    <div class="form-group"><label for="topic">Topic *</label><input type="text" id="topic" placeholder="e.g. World War II, Calculus, Python Basics…" /></div>
+    <div class="form-row">
+      <div class="form-group"><label for="num_questions">Number of Questions</label><input type="number" id="num_questions" value="5" min="1" max="10" /></div>
+      <div class="form-group"><label for="difficulty">Difficulty</label><select id="difficulty"><option value="easy">🟢 Easy</option><option value="medium" selected>🟡 Medium</option><option value="hard">🔴 Hard</option></select></div>
+    </div>
+    <button class="btn btn-primary" id="quizBtn" onclick="generateQuiz()">📝 Generate Quiz</button>
+  </div>
+  <div class="spinner-wrap" id="spinner"><div class="spinner"></div><p class="spinner-text">Generating quiz…</p></div>
+  <div id="quizHeader" style="display:none;margin-bottom:1.25rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
+      <div><h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--text)" id="quizTitle"></h2><p style="font-size:0.83rem;color:var(--text2);margin-top:0.2rem" id="quizMeta"></p></div>
+      <button class="btn btn-outline" onclick="generateQuiz()" style="font-size:0.82rem;padding:0.5rem 1rem">🔄 Regenerate</button>
+    </div>
+  </div>
+  <div id="quizContainer"></div>
+</div>
+<script>
+async function generateQuiz() {
+  const topic=document.getElementById('topic').value.trim();
+  const num_questions=parseInt(document.getElementById('num_questions').value)||5;
+  const difficulty=document.getElementById('difficulty').value;
+  document.getElementById('errorAlert').classList.remove('show');
+  document.getElementById('quizContainer').innerHTML='';
+  document.getElementById('quizHeader').style.display='none';
+  if(!topic){document.getElementById('errorMsg').textContent='Please enter a topic.';document.getElementById('errorAlert').classList.add('show');return;}
+  setLoading(true);
+  try {
+    const res=await fetch('/quiz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,num_questions,difficulty})});
+    const data=await res.json();
+    if(!res.ok){document.getElementById('errorMsg').textContent=data.error||'Failed.';document.getElementById('errorAlert').classList.add('show');return;}
+    renderQuiz(data);
+  } catch(e){document.getElementById('errorMsg').textContent='Network error.';document.getElementById('errorAlert').classList.add('show');}
+  finally{setLoading(false);}
+}
+function renderQuiz(data) {
+  const emoji={easy:'🟢',medium:'🟡',hard:'🔴'};
+  document.getElementById('quizTitle').textContent=`📝 ${data.topic}`;
+  document.getElementById('quizMeta').textContent=`${data.num_questions} questions · ${emoji[data.difficulty]} ${data.difficulty}`;
+  document.getElementById('quizHeader').style.display='flex';
+  const container=document.getElementById('quizContainer');
+  container.innerHTML='';
+  data.quiz.forEach((q,i)=>{
+    const div=document.createElement('div');
+    div.className='quiz-question';
+    div.style.animationDelay=`${i*0.06}s`;
+    const opts=Object.entries(q.options).map(([k,v])=>`<div class="quiz-option ${k===q.correct_answer?'correct':''}"><strong>${k}.</strong> ${v} ${k===q.correct_answer?'✓':''}</div>`).join('');
+    div.innerHTML=`<div class="quiz-q-num">Question ${q.question_number}</div><div class="quiz-q-text">${q.question}</div><div class="quiz-options">${opts}</div><div class="quiz-explanation">💡 <strong>Why:</strong> ${q.explanation}</div>`;
+    container.appendChild(div);
+  });
+}
+function setLoading(on){
+  const btn=document.getElementById('quizBtn');
+  btn.disabled=on;btn.textContent=on?'⏳ Generating…':'📝 Generate Quiz';
+  document.getElementById('spinner').classList.toggle('show',on);
+}
+document.getElementById('topic').addEventListener('keydown',e=>{if(e.key==='Enter')generateQuiz();});
+</script>
+</body>
+</html>

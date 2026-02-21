@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Translate & Simplify – EduGenie</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><div class="brand-icon">🧞</div><span class="brand-name">Edu<span>Genie</span></span></a>
+  <ul class="nav-links">
+    <li><a href="/">🏠 Home</a></li><li><a href="/ask">💬 Ask</a></li><li><a href="/explain">🔍 Explain</a></li>
+    <li><a href="/quiz">📝 Quiz</a></li><li><a href="/test">✍️ Test</a></li>
+    <li><a href="/flashcards">🃏 Cards</a></li><li><a href="/summary">📚 Summary</a></li>
+    <li><a href="/translate" class="active">🌐 Translate</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-badge">🌐 Feature 7</div>
+    <h1 class="page-title">Translate & <span>Simplify</span></h1>
+    <p class="page-subtitle">Paste complex study content and translate it or simplify it into any language or reading level.</p>
+  </div>
+
+  <div class="card">
+    <div class="alert alert-error" id="errorAlert"><span>⚠️</span><span id="errorMsg"></span></div>
+
+    <div class="form-group">
+      <label>Choose Target Language / Style</label>
+      <div class="lang-grid" id="langGrid">
+        <button class="lang-btn active" onclick="setLang(this,'Simple English')">🇺🇸 Simple English</button>
+        <button class="lang-btn" onclick="setLang(this,'Hindi')">🇮🇳 Hindi</button>
+        <button class="lang-btn" onclick="setLang(this,'Kannada')">🏳️ Kannada</button>
+        <button class="lang-btn" onclick="setLang(this,'Tamil')">🏳️ Tamil</button>
+        <button class="lang-btn" onclick="setLang(this,'Telugu')">🏳️ Telugu</button>
+        <button class="lang-btn" onclick="setLang(this,'French')">🇫🇷 French</button>
+        <button class="lang-btn" onclick="setLang(this,'Spanish')">🇪🇸 Spanish</button>
+        <button class="lang-btn" onclick="setLang(this,'Arabic')">🇸🇦 Arabic</button>
+        <button class="lang-btn" onclick="setLang(this,'5-year-old level English')">👶 For Kids</button>
+      </div>
+      <div style="margin-top:0.75rem;display:flex;gap:0.5rem;align-items:center">
+        <input type="text" id="customLang" placeholder="Or type custom language/style…" style="flex:1" />
+        <button class="btn btn-outline" onclick="setCustomLang()" style="padding:0.6rem 1rem;font-size:0.85rem;white-space:nowrap">Use This</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="content">Content to Translate / Simplify *</label>
+      <textarea id="content" rows="8" placeholder="Paste your textbook paragraph, notes, or any complex content here…" oninput="updateCharCount()"></textarea>
+      <div class="char-count"><span id="charCount">0</span> characters</div>
+    </div>
+
+    <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" id="translateBtn" onclick="translateContent()">🌐 Translate / Simplify</button>
+      <button class="speak-btn" onclick="speakInput()" style="font-size:0.85rem">🔊 Read Input</button>
+    </div>
+  </div>
+
+  <div class="spinner-wrap" id="spinner"><div class="spinner"></div><p class="spinner-text">Translating…</p></div>
+
+  <div class="result-card" id="resultCard">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.9rem;flex-wrap:wrap;gap:0.5rem">
+      <div class="result-label" style="margin:0">🌐 <span id="resultLang"></span></div>
+      <div style="display:flex;gap:0.5rem">
+        <button class="speak-btn" onclick="speakResult()" style="font-size:0.78rem">🔊 Read Aloud</button>
+        <button class="btn btn-outline" onclick="copyResult()" id="copyBtn" style="font-size:0.78rem;padding:0.4rem 0.9rem">📋 Copy</button>
+      </div>
+    </div>
+    <div class="result-text" id="resultText"></div>
+  </div>
+</div>
+
+<script>
+let selectedLang = 'Simple English';
+
+function setLang(btn, lang) {
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedLang = lang;
+  document.getElementById('customLang').value = '';
+}
+
+function setCustomLang() {
+  const val = document.getElementById('customLang').value.trim();
+  if (!val) return;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  selectedLang = val;
+}
+
+function updateCharCount() {
+  document.getElementById('charCount').textContent = document.getElementById('content').value.length;
+}
+
+async function translateContent() {
+  const content  = document.getElementById('content').value.trim();
+  const language = document.getElementById('customLang').value.trim() || selectedLang;
+
+  document.getElementById('errorAlert').classList.remove('show');
+  if (!content) { showError('Please paste content to translate.'); return; }
+  if (content.length < 10) { showError('Please provide at least 10 characters.'); return; }
+
+  setLoading(true);
+  try {
+    const res  = await fetch('/translate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content, language}) });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'Failed.'); return; }
+    document.getElementById('resultLang').textContent = `Translated to: ${data.language}`;
+    document.getElementById('resultText').textContent = data.result;
+    document.getElementById('resultCard').classList.add('show');
+  } catch(e) { showError('Network error. Make sure server is running.'); }
+  finally { setLoading(false); }
+}
+
+function speakInput() {
+  const text = document.getElementById('content').value.trim();
+  if (!text) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 0.9;
+  window.speechSynthesis.speak(utt);
+}
+
+function speakResult() {
+  const text = document.getElementById('resultText').textContent;
+  if (!text) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 0.9;
+  window.speechSynthesis.speak(utt);
+}
+
+function copyResult() {
+  const text = document.getElementById('resultText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+  });
+}
+
+function setLoading(on) {
+  document.getElementById('translateBtn').disabled    = on;
+  document.getElementById('translateBtn').textContent = on ? '⏳ Translating…' : '🌐 Translate / Simplify';
+  document.getElementById('spinner').classList.toggle('show', on);
+  if (on) document.getElementById('resultCard').classList.remove('show');
+}
+
+function showError(msg) {
+  document.getElementById('errorMsg').textContent = msg;
+  document.getElementById('errorAlert').classList.add('show');
+}
+</script>
+</body>
+</html>

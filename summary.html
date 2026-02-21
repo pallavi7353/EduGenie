@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Content Summarizer – EduGenie</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><div class="brand-icon">🧞</div><span class="brand-name">Edu<span>Genie</span></span></a>
+  <ul class="nav-links">
+    <li><a href="/">🏠 Home</a></li><li><a href="/ask">💬 Ask</a></li><li><a href="/explain">🔍 Explain</a></li>
+    <li><a href="/quiz">📝 Quiz</a></li><li><a href="/test">✍️ Test</a></li>
+    <li><a href="/flashcards">🃏 Cards</a></li><li><a href="/summary" class="active">📚 Summary</a></li><li><a href="/translate">🌐 Translate</a></li>
+  </ul>
+</nav>
+<div class="page">
+  <div class="page-header">
+    <div class="page-badge">📚 Feature 4</div>
+    <h1 class="page-title">Content <span>Summarizer</span></h1>
+    <p class="page-subtitle">Paste any study material and get a structured bullet-point summary instantly.</p>
+  </div>
+  <div class="card">
+    <div class="alert alert-error" id="errorAlert"><span>⚠️</span><span id="errorMsg"></span></div>
+    <div class="form-group">
+      <label for="content">Study Material *</label>
+      <textarea id="content" rows="10" placeholder="Paste your study notes, textbook excerpt, or any content here… (min 50 characters)" oninput="updateCharCount()"></textarea>
+      <div class="char-count"><span id="charCount">0</span> characters</div>
+    </div>
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+      <button class="btn btn-primary" id="summarizeBtn" onclick="summarizeContent()">📚 Summarize</button>
+      <button class="btn btn-outline" onclick="clearAll()">🗑️ Clear</button>
+      <button class="speak-btn" onclick="speakResult()">🔊 Read Summary</button>
+    </div>
+  </div>
+  <div class="spinner-wrap" id="spinner"><div class="spinner"></div><p class="spinner-text">Reading and summarizing…</p></div>
+  <div class="result-card" id="resultCard">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.9rem;flex-wrap:wrap;gap:0.5rem">
+      <div class="result-label" style="margin:0">📝 Summary</div>
+      <span style="font-size:0.78rem;color:var(--text3)" id="charInfo"></span>
+    </div>
+    <div class="result-text" id="resultText"></div>
+    <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <button class="btn btn-outline" onclick="copyResult()" id="copyBtn" style="font-size:0.82rem;padding:0.5rem 1.1rem">📋 Copy Summary</button>
+    </div>
+  </div>
+</div>
+<script>
+function updateCharCount(){document.getElementById('charCount').textContent=document.getElementById('content').value.length;}
+async function summarizeContent(){
+  const content=document.getElementById('content').value.trim();
+  document.getElementById('errorAlert').classList.remove('show');
+  if(!content){showError('Please paste your study material.');return;}
+  if(content.length<50){showError('Please provide at least 50 characters.');return;}
+  setLoading(true);
+  try{
+    const res=await fetch('/summary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})});
+    const data=await res.json();
+    if(!res.ok){showError(data.error||'Error');return;}
+    document.getElementById('resultText').textContent=data.summary;
+    document.getElementById('charInfo').textContent=`${data.char_count.toLocaleString()} characters processed`;
+    document.getElementById('resultCard').classList.add('show');
+  }catch(e){showError('Network error.');}
+  finally{setLoading(false);}
+}
+function copyResult(){const t=document.getElementById('resultText').textContent;navigator.clipboard.writeText(t).then(()=>{const b=document.getElementById('copyBtn');b.textContent='✅ Copied!';setTimeout(()=>{b.textContent='📋 Copy Summary';},2000);});}
+function clearAll(){document.getElementById('content').value='';document.getElementById('charCount').textContent='0';document.getElementById('resultCard').classList.remove('show');document.getElementById('errorAlert').classList.remove('show');}
+function speakResult(){const t=document.getElementById('resultText').textContent;if(t){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=0.9;window.speechSynthesis.speak(u);}}
+function setLoading(on){const btn=document.getElementById('summarizeBtn');btn.disabled=on;btn.textContent=on?'⏳ Summarizing…':'📚 Summarize';document.getElementById('spinner').classList.toggle('show',on);if(on)document.getElementById('resultCard').classList.remove('show');}
+function showError(msg){document.getElementById('errorMsg').textContent=msg;document.getElementById('errorAlert').classList.add('show');}
+</script>
+</body>
+</html>
